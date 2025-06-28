@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from models.todos import Todo
 from config.database import collection_name
 from schema.schemas import list_serial, individual_serial
@@ -9,9 +9,22 @@ router = APIRouter()
 
 # ✅ GET all todos
 @router.get("/", tags=["Todos"])
-async def get_todos():
-    todos = list_serial(collection_name.find())
-    return todos
+async def get_todos(page: int = Query(1, ge=1), limit: int = Query(10, ge=1)):
+    skip = (page - 1) * limit
+
+    todos_cursor = collection_name.find().skip(skip).limit(limit)
+    todos = list_serial(todos_cursor)
+
+    total_todos = collection_name.count_documents({})
+    total_pages = (total_todos + limit - 1) // limit
+
+    return {
+        "page": page,
+        "limit": limit,
+        "total_todos": total_todos,
+        "total_pages": total_pages,
+        "todos": todos
+    }
 
 
 # ✅ POST new todo with duplicate check
